@@ -53,7 +53,11 @@ import "./MetaTransaction.sol";
 /// - `<prefix>/_head`: `uint` - index of the first element
 /// - `<prefix>/_tail`: `uint` - index of the next element to push to the queue
 /// - `<prefix/<n>`: `bytes` - the `n`-th message; `n` is encoded as uint32
-abstract contract PhatRollupAnchor is ReentrancyGuard, MetaTxReceiver, AccessControl {
+abstract contract PhatRollupAnchor is
+    ReentrancyGuard,
+    MetaTxReceiver,
+    AccessControl
+{
     // Constants aligned with the Phat Contract rollup queue implementation.
     bytes constant QUEUE_PREFIX = "q/";
     bytes constant KEY_HEAD = "_head";
@@ -80,7 +84,7 @@ abstract contract PhatRollupAnchor is ReentrancyGuard, MetaTxReceiver, AccessCon
     uint8 constant ACTION_GRANT_ATTESTOR = 10;
     uint8 constant ACTION_REVOKE_ATTESTOR = 11;
 
-    mapping (bytes => bytes) kvStore;
+    mapping(bytes => bytes) kvStore;
 
     /// Triggers a rollup transaction with `eq` conditoin check on uint256 values
     ///
@@ -97,10 +101,19 @@ abstract contract PhatRollupAnchor is ReentrancyGuard, MetaTxReceiver, AccessCon
         bytes[] calldata actions
     ) public returns (bool) {
         // Allow meta tx to call itself
-        if (msg.sender != address(this) && !hasRole(ATTESTOR_ROLE, msg.sender)) {
+        if (
+            msg.sender != address(this) && !hasRole(ATTESTOR_ROLE, msg.sender)
+        ) {
             revert BadAttestor();
         }
-        return _rollupU256CondEqInternal(condKeys, condValues, updateKeys, updateValues, actions);
+        return
+            _rollupU256CondEqInternal(
+                condKeys,
+                condValues,
+                updateKeys,
+                updateValues,
+                actions
+            );
     }
 
     /// Triggers a rollup transaction similar to `rollupU256CondEq` but with meta-tx.
@@ -126,7 +139,14 @@ abstract contract PhatRollupAnchor is ReentrancyGuard, MetaTxReceiver, AccessCon
         emit MetaTxDecoded();
         // Self-call to move memory bytes to calldata. Check "error handling" notes in docstring
         // to learn more.
-        return this.rollupU256CondEq(condKeys, condValues, updateKeys, updateValues, actions);
+        return
+            this.rollupU256CondEq(
+                condKeys,
+                condValues,
+                updateKeys,
+                updateValues,
+                actions
+            );
     }
 
     function _rollupU256CondEqInternal(
@@ -135,7 +155,7 @@ abstract contract PhatRollupAnchor is ReentrancyGuard, MetaTxReceiver, AccessCon
         bytes[] calldata updateKeys,
         bytes[] calldata updateValues,
         bytes[] calldata actions
-    ) internal nonReentrant() returns (bool) {
+    ) internal nonReentrant returns (bool) {
         if (condKeys.length != condValues.length) {
             revert BadCondLen(condKeys.length, condValues.length);
         }
@@ -192,7 +212,7 @@ abstract contract PhatRollupAnchor is ReentrancyGuard, MetaTxReceiver, AccessCon
         }
     }
 
-    function getStorage(bytes memory key) public view returns(bytes memory) {
+    function getStorage(bytes memory key) public view returns (bytes memory) {
         return kvStore[key];
     }
 
@@ -211,7 +231,7 @@ abstract contract PhatRollupAnchor is ReentrancyGuard, MetaTxReceiver, AccessCon
 
     /// Pushes a request to the queue waiting for the Phat Contract to process
     ///
-    /// Returns the index of the reqeust.
+    /// Returns the index of the request.
     function _pushMessage(bytes memory data) internal returns (uint32) {
         uint32 tail = queueGetUint(KEY_TAIL);
         bytes memory itemKey = abi.encode(tail);
@@ -247,7 +267,9 @@ abstract contract PhatRollupAnchor is ReentrancyGuard, MetaTxReceiver, AccessCon
     }
 
     /// Returns the raw bytes value stored in the queue kv store
-    function queueGetBytes(bytes memory key) public view returns (bytes memory) {
+    function queueGetBytes(
+        bytes memory key
+    ) public view returns (bytes memory) {
         bytes memory storageKey = bytes.concat(QUEUE_PREFIX, key);
         return kvStore[storageKey];
     }
