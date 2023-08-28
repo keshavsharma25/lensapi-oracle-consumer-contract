@@ -2,21 +2,22 @@ import { ethers } from "hardhat";
 import "dotenv/config";
 
 async function main() {
-  const TestLensApiConsumerContract = await ethers.getContractFactory("TestLensApiConsumerContract");
+  const PokeLens = await ethers.getContractFactory("PokeLens");
 
   const [deployer] = await ethers.getSigners();
 
-  console.log('Deploying...');
-  const attestor = process.env['MUMBAI_LENSAPI_ORACLE_ENDPOINT'] || deployer.address;  // When deploy for real e2e test, change it to the real attestor wallet.
-  const consumer = await TestLensApiConsumerContract.deploy(attestor);
+  console.log("Deploying...");
+  const attestor =
+    process.env["MUMBAI_LENSAPI_ORACLE_ENDPOINT"] || deployer.address; // When deploy for real e2e test, change it to the real attestor wallet.
+  const consumer = await PokeLens.deploy(attestor);
   await consumer.deployed();
-  console.log('Deployed', {
+  console.log("Deployed", {
     consumer: consumer.address,
   });
 
-  console.log('Configuring...');
+  console.log("Configuring...");
   await consumer.connect(deployer).request("0x01c567");
-  console.log('Done');
+  console.log("Done");
 }
 
 // We recommend this pattern to be able to use async/await everywhere

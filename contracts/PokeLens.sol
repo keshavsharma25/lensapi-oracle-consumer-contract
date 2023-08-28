@@ -15,8 +15,13 @@ contract PokeLens is PhatRollupAnchor, Ownable {
         uint256 totalCollects;
     }
 
-    mapping(address => string) public category;
-    mapping(string => IPokeNFT) public categoryContract;
+    struct Profile {
+        string category;
+        string profileId;
+    }
+
+    mapping(address => Profile) public class;
+    mapping(string => IPokeNFT) public classContract;
     mapping(uint256 => address) internal _requesters;
 
     uint constant TYPE_RESPONSE = 0;
@@ -25,7 +30,7 @@ contract PokeLens is PhatRollupAnchor, Ownable {
     mapping(uint => string) requests;
     uint nextRequest = 1;
 
-    event CategorySet(address indexed user, string category);
+    event CategorySet(address indexed user, string category, string profileId);
     event MintSuccessful(address indexed user, uint256 tokenId);
     event MintFailed(address indexed user, uint256 tokenId);
     event RequestSent(address indexed user, uint256 id, string profileId);
@@ -35,16 +40,16 @@ contract PokeLens is PhatRollupAnchor, Ownable {
     constructor(address phatAttestor) Ownable() {
         _grantRole(PhatRollupAnchor.ATTESTOR_ROLE, phatAttestor);
 
-        categoryContract["fire"] = IPokeNFT(
+        classContract["fire"] = IPokeNFT(
             address(0x58B2CC9C68e9A4B73338E27d12663D73d641A723)
         );
-        categoryContract["water"] = IPokeNFT(
+        classContract["water"] = IPokeNFT(
             address(0x299914955E49298Eb1a8dc59a890E99127513172)
         );
-        categoryContract["grass"] = IPokeNFT(
+        classContract["grass"] = IPokeNFT(
             address(0x2162aa1C256e788eEf4705Ea39C42F28F07284Cb)
         );
-        categoryContract["electric"] = IPokeNFT(
+        classContract["electric"] = IPokeNFT(
             address(0x84f4690638200676d58e046D58424F4e63D52664)
         );
     }
@@ -53,22 +58,29 @@ contract PokeLens is PhatRollupAnchor, Ownable {
         _grantRole(PhatRollupAnchor.ATTESTOR_ROLE, phatAttestor);
     }
 
-    function setCategory(string memory _category) public {
-        category[msg.sender] = _category;
+    function setCategory(
+        string memory _category,
+        string memory _profileId
+    ) internal {
+        class[msg.sender] = Profile(_category, _profileId);
 
-        emit CategorySet(msg.sender, _category);
+        emit CategorySet(msg.sender, _category, _profileId);
     }
 
     function getCategory(address _user) public view returns (string memory) {
         return category[_user];
     }
 
-    function request(string calldata profileId) public {
+    function request(
+        string calldata profileId,
+        string calldata category
+    ) public {
         // assemble the request
         uint id = nextRequest;
         _requesters[id] = msg.sender;
         requests[id] = profileId;
         _pushMessage(abi.encode(id, profileId));
+        setCategory(category, profileId);
         nextRequest += 1;
         emit RequestSent(msg.sender, id, profileId);
     }
@@ -83,8 +95,8 @@ contract PokeLens is PhatRollupAnchor, Ownable {
 
         if (resType == TYPE_RESPONSE) {
             uint256[5] memory decoded = decode(data);
-            string memory categoryId = category[_requesters[id]];
-            IPokeNFT nft = IPokeNFT(categoryContract[categoryId]);
+            string memory classId = class[_requesters[id]].category;
+            IPokeNFT nft = IPokeNFT(classContract[classId]);
 
             IPokeNFT.Metrics memory resp = IPokeNFT.Metrics(
                 decoded[0],
