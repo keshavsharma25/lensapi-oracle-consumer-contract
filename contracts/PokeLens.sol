@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./PhatRollupAnchor.sol";
-import "./interfaces/IPokeNFT.sol";
+import "./PokeNFT.sol";
 
 contract PokeLens is PhatRollupAnchor, Ownable {
     struct Metrics {
@@ -15,13 +15,22 @@ contract PokeLens is PhatRollupAnchor, Ownable {
         uint256 totalCollects;
     }
 
+    enum Class {
+        FIRE,
+        WATER,
+        GRASS,
+        ELECTRIC
+    }
+
     struct Profile {
-        string category;
+        Class category;
         string profileId;
     }
 
+    PokeNFT public pokeNFT;
+
     mapping(address => Profile) public class;
-    mapping(string => IPokeNFT) public classContract;
+    mapping(string => PokeNFT) public classContract;
     mapping(uint256 => address) internal _requesters;
 
     uint constant TYPE_RESPONSE = 0;
@@ -40,16 +49,16 @@ contract PokeLens is PhatRollupAnchor, Ownable {
     constructor(address phatAttestor) Ownable() {
         _grantRole(PhatRollupAnchor.ATTESTOR_ROLE, phatAttestor);
 
-        classContract["fire"] = IPokeNFT(
+        classContract["fire"] = PokeNFT(
             address(0x58B2CC9C68e9A4B73338E27d12663D73d641A723)
         );
-        classContract["water"] = IPokeNFT(
+        classContract["water"] = PokeNFT(
             address(0x299914955E49298Eb1a8dc59a890E99127513172)
         );
-        classContract["grass"] = IPokeNFT(
+        classContract["grass"] = PokeNFT(
             address(0x2162aa1C256e788eEf4705Ea39C42F28F07284Cb)
         );
-        classContract["electric"] = IPokeNFT(
+        classContract["electric"] = PokeNFT(
             address(0x84f4690638200676d58e046D58424F4e63D52664)
         );
     }
@@ -59,7 +68,7 @@ contract PokeLens is PhatRollupAnchor, Ownable {
     }
 
     function setClass(
-        string memory _category,
+        Class memory _category,
         string memory _profileId
     ) internal {
         class[msg.sender] = Profile(_category, _profileId);
@@ -73,7 +82,7 @@ contract PokeLens is PhatRollupAnchor, Ownable {
 
     function request(
         string calldata profileId,
-        string calldata category
+        Class calldata category
     ) public {
         // assemble the request
         uint id = nextRequest;
@@ -96,7 +105,7 @@ contract PokeLens is PhatRollupAnchor, Ownable {
         if (resType == TYPE_RESPONSE) {
             uint256[5] memory decoded = decode(data);
             string memory classId = class[_requesters[id]].category;
-            IPokeNFT nft = IPokeNFT(classContract[classId]);
+            pokeNFT = classContract[classId];
 
             IPokeNFT.Metrics memory resp = IPokeNFT.Metrics(
                 decoded[0],
