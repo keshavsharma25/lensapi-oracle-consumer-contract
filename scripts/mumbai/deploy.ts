@@ -16,7 +16,7 @@ async function main() {
   });
 
   console.log("Configuring...");
-  await consumer.connect(deployer).request("0x01", "fire");
+  // await consumer.connect(deployer).request("0x01", "fire");
   console.log("Done");
 }
 

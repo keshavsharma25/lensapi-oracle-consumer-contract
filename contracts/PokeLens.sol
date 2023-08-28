@@ -2,9 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "./PhatRollupAnchor.sol";
-import "./PokeNFT.sol";
+import "./NFTs/Pyroflame.sol";
 
 contract PokeLens is PhatRollupAnchor, Ownable {
     struct Metrics {
@@ -27,10 +26,10 @@ contract PokeLens is PhatRollupAnchor, Ownable {
         string profileId;
     }
 
-    PokeNFT public pokeNFT;
+    Pyroflame nft;
 
     mapping(address => Profile) public class;
-    mapping(string => PokeNFT) public classContract;
+    mapping(Class => Pyroflame) public classContract;
     mapping(uint256 => address) internal _requesters;
 
     uint constant TYPE_RESPONSE = 0;
@@ -39,7 +38,7 @@ contract PokeLens is PhatRollupAnchor, Ownable {
     mapping(uint => string) requests;
     uint nextRequest = 1;
 
-    event CategorySet(address indexed user, string category, string profileId);
+    event CategorySet(address indexed user, Class category, string profileId);
     event MintSuccessful(address indexed user, uint256 tokenId);
     event MintFailed(address indexed user, uint256 tokenId);
     event RequestSent(address indexed user, uint256 id, string profileId);
@@ -49,28 +48,26 @@ contract PokeLens is PhatRollupAnchor, Ownable {
     constructor(address phatAttestor) Ownable() {
         _grantRole(PhatRollupAnchor.ATTESTOR_ROLE, phatAttestor);
 
-        classContract["fire"] = PokeNFT(
-            address(0x58B2CC9C68e9A4B73338E27d12663D73d641A723)
+        classContract[Class.FIRE] = Pyroflame(
+            address(0x76F249172183685a7E811Df1a44b7bbfF1dC5E65)
         );
-        classContract["water"] = PokeNFT(
-            address(0x299914955E49298Eb1a8dc59a890E99127513172)
-        );
-        classContract["grass"] = PokeNFT(
-            address(0x2162aa1C256e788eEf4705Ea39C42F28F07284Cb)
-        );
-        classContract["electric"] = PokeNFT(
-            address(0x84f4690638200676d58e046D58424F4e63D52664)
-        );
+
+        // classContract["water"] = PokeNFT(
+        //     address(0x299914955E49298Eb1a8dc59a890E99127513172)
+        // );
+        // classContract["grass"] = PokeNFT(
+        //     address(0x2162aa1C256e788eEf4705Ea39C42F28F07284Cb)
+        // );
+        // classContract["electric"] = PokeNFT(
+        //     address(0x84f4690638200676d58e046D58424F4e63D52664)
+        // );
     }
 
     function setAttestor(address phatAttestor) public {
         _grantRole(PhatRollupAnchor.ATTESTOR_ROLE, phatAttestor);
     }
 
-    function setClass(
-        Class memory _category,
-        string memory _profileId
-    ) internal {
+    function setClass(Class _category, string memory _profileId) internal {
         class[msg.sender] = Profile(_category, _profileId);
 
         emit CategorySet(msg.sender, _category, _profileId);
@@ -80,10 +77,7 @@ contract PokeLens is PhatRollupAnchor, Ownable {
         return class[_user];
     }
 
-    function request(
-        string calldata profileId,
-        Class calldata category
-    ) public {
+    function request(string calldata profileId, Class category) public {
         // assemble the request
         uint id = nextRequest;
         _requesters[id] = msg.sender;
@@ -103,78 +97,18 @@ contract PokeLens is PhatRollupAnchor, Ownable {
         emit ResponseReceived(_requesters[id], id, requests[id]);
 
         if (resType == TYPE_RESPONSE) {
-            uint256[5] memory decoded = decode(data);
-            string memory classId = class[_requesters[id]].category;
-            pokeNFT = classContract[classId];
+            Class classId = class[_requesters[id]].category;
 
-            IPokeNFT.Metrics memory resp = IPokeNFT.Metrics(
-                decoded[0],
-                decoded[1],
-                decoded[2],
-                decoded[3],
-                decoded[4]
-            );
+            nft = classContract[classId];
 
-            try nft.evolveOrClaim(msg.sender, resp) {
-                emit MintSuccessful(msg.sender, data);
-                delete requests[id];
-                delete _requesters[id];
-            } catch {
-                emit MintFailed(msg.sender, data);
-                delete requests[id];
-                delete _requesters[id];
-            }
+            nft.evolveOrClaim(_requesters[id], data);
+            emit MintSuccessful(_requesters[id], data);
+            delete requests[id];
+            delete _requesters[id];
         } else if (resType == TYPE_ERROR) {
             emit ErrorReceived(_requesters[id], id, requests[id]);
             delete requests[id];
             delete _requesters[id];
         }
-    }
-
-    function digitArray(int256 _number) public pure returns (int256[] memory) {
-        int256 num = _number;
-
-        int256 no_digits = 0;
-
-        while (num > 0) {
-            num /= 10;
-            no_digits++;
-        }
-
-        num = _number;
-        int256[] memory numberArray = new int256[](uint256(no_digits));
-
-        for (int256 i = no_digits - 1; i >= 0; i--) {
-            int256 digit = num % 10;
-            numberArray[uint256(i)] = digit;
-            num /= 10;
-        }
-
-        return numberArray;
-    }
-
-    function decode(uint256 _number) public pure returns (uint256[5] memory) {
-        int256 num = int256(_number);
-
-        int256[] memory numberArray = digitArray(num);
-        uint256[5] memory decoded;
-
-        int256 offset = 0;
-
-        for (int256 i = 0; i < 5; i++) {
-            int256 numLength = numberArray[uint256(offset)];
-            offset += 1;
-
-            int256 extractedValue = 0;
-
-            for (int256 j = offset; j < offset + numLength; j++) {
-                extractedValue = extractedValue * 10 + numberArray[uint256(j)];
-            }
-
-            decoded[uint256(i)] = uint256(extractedValue);
-            offset += numLength;
-        }
-
-        return decoded;
     }
 }
