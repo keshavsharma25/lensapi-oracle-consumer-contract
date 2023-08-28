@@ -58,7 +58,7 @@ contract PokeLens is PhatRollupAnchor, Ownable {
         _grantRole(PhatRollupAnchor.ATTESTOR_ROLE, phatAttestor);
     }
 
-    function setCategory(
+    function setClass(
         string memory _category,
         string memory _profileId
     ) internal {
@@ -67,8 +67,8 @@ contract PokeLens is PhatRollupAnchor, Ownable {
         emit CategorySet(msg.sender, _category, _profileId);
     }
 
-    function getCategory(address _user) public view returns (string memory) {
-        return category[_user];
+    function getClass(address _user) public view returns (Profile memory) {
+        return class[_user];
     }
 
     function request(
@@ -80,7 +80,7 @@ contract PokeLens is PhatRollupAnchor, Ownable {
         _requesters[id] = msg.sender;
         requests[id] = profileId;
         _pushMessage(abi.encode(id, profileId));
-        setCategory(category, profileId);
+        setClass(category, profileId);
         nextRequest += 1;
         emit RequestSent(msg.sender, id, profileId);
     }
